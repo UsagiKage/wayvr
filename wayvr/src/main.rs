@@ -68,6 +68,16 @@ struct Args {
     /// Development-only stdin driver: simulated KWrite and recording input; never starts VR.
     #[arg(long)]
     desktop_mirror_driver: bool,
+    #[cfg(feature = "experimental-kde-driver")]
+    /// Native KWrite capture/metadata preflight only; never creates input devices or starts VR.
+    #[arg(long)]
+    desktop_mirror_probe: Option<String>,
+    #[cfg(feature = "experimental-kde-driver")]
+    #[arg(long, requires = "desktop_mirror_probe")]
+    kwrite_test_pid: Option<u32>,
+    #[cfg(feature = "experimental-kde-driver")]
+    #[arg(long, requires = "desktop_mirror_probe")]
+    kwrite_test_title: Option<String>,
     #[cfg(feature = "openvr")]
     /// Force OpenVR backend
     #[arg(long)]
@@ -149,6 +159,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         Args::default()
     };
+
+    #[cfg(feature = "experimental-kde-driver")]
+    if let Some(uuid) = &args.desktop_mirror_probe {
+        if args.desktop_mirror_driver || std::env::args().count() != 7 {
+            return Err(
+                "Native preflight requires only UUID, KWrite PID and disposable title".into(),
+            );
+        }
+        return Ok(overlays::screen::desktop_probe::run(
+            uuid,
+            args.kwrite_test_pid.ok_or("Missing explicit KWrite PID")?,
+            args.kwrite_test_title
+                .as_deref()
+                .ok_or("Missing disposable title")?,
+        )?);
+    }
 
     #[cfg(feature = "experimental-kde-driver")]
     if args.desktop_mirror_driver {
