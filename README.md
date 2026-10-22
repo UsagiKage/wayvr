@@ -2,6 +2,16 @@
 
 # WayVR (previously WlxOverlay-S)
 
+### AI-Assisted Development Notice
+
+This is an unofficial personal fork of WayVR maintained for experimentation on a Linux VR workstation.
+
+Development is substantially assisted by AI coding tools, including OpenAI Codex. AI tools may contribute to code generation, debugging, refactoring, documentation, and testing workflows.
+
+Changes are directed and reviewed by the human maintainer. Testing status and known limitations are documented where practical. AI-generated code should not be assumed to have been independently verified.
+
+This fork is not affiliated with or endorsed by the original WayVR maintainers. Please refer to the original repository for official releases and support.
+
 A lightweight OpenXR/OpenVR overlay for Wayland and X11 desktops.
 
 WayVR lets you access your desktop screens while in VR, and even launch apps directly in VR.
