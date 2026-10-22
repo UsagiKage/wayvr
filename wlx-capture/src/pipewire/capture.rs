@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
@@ -66,6 +67,7 @@ where
     data: Option<CaptureData<R>>,
     node_id: u32,
     handle: Option<JoinHandle<Result<(), Error>>>,
+    alive: Arc<AtomicBool>,
 }
 
 impl<R> PipewireCapture<R>
@@ -78,6 +80,7 @@ where
             data: None,
             node_id,
             handle: None,
+            alive: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -87,6 +90,7 @@ where
     R: Any + Send,
 {
     fn drop(&mut self) {
+        self.alive.store(false, Ordering::Release);
         if let Some(data) = &self.data {
             let _ = data.tx_ctrl.send(PwChangeRequest::Stop);
         }
@@ -116,9 +120,11 @@ where
             let name = self.name.clone();
             let node_id = self.node_id;
             let formats = dmabuf_formats.to_vec();
+            let alive = self.alive.clone();
 
             move || {
                 main_loop::<U, R>(
+                    alive,
                     name,
                     node_id,
                     formats,
@@ -132,6 +138,9 @@ where
     }
     fn is_ready(&self) -> bool {
         self.data.is_some()
+    }
+    fn is_alive(&self) -> bool {
+        self.alive.load(Ordering::Acquire) && self.handle.as_ref().is_some_and(|h| !h.is_finished())
     }
     fn supports_dmbuf(&self) -> bool {
         true
@@ -172,6 +181,7 @@ where
 }
 
 fn main_loop<U, R>(
+    alive: Arc<AtomicBool>,
     name: Arc<str>,
     node_id: u32,
     dmabuf_formats: Vec<DrmFormat>,
@@ -212,6 +222,10 @@ where
         .state_changed({
             let name = name.clone();
             move |_, _, old, new| {
+                alive.store(
+                    matches!(new, pw::stream::StreamState::Streaming),
+                    Ordering::Release,
+                );
                 log::info!("{}: stream state changed: {:?} -> {:?}", name, old, new);
             }
         })

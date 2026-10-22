@@ -2,6 +2,10 @@ use regex::Regex;
 use std::process::Command;
 
 fn main() {
+    if std::env::var_os("CARGO_FEATURE_EXPERIMENTAL_KDE_MIRROR").is_some() {
+        // The isolated artifact carries the exact OpenVR loader used at build time.
+        println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/lib");
+    }
     let mut wlx_build = get_version().unwrap_or(format!("{}-unknown", env!("CARGO_PKG_VERSION")));
 
     match std::env::var("GITHUB_JOB").as_deref() {

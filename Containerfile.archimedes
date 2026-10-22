@@ -1,0 +1,12 @@
+FROM docker.io/library/rust@sha256:d7d8fd94f01c80a355b86fe8691abc26be051daa44fa021a8b5ece5c8cbcb469
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake clang libclang-dev pkg-config git ca-certificates \
+    libasound2-dev libxkbcommon-dev libxkbcommon-x11-dev libfontconfig-dev \
+    libdbus-1-dev libpipewire-0.3-dev libspa-0.2-dev libwayland-dev libegl-dev \
+    libxcb-glx0-dev libx11-dev libxext-dev libxrandr-dev libvulkan-dev \
+    glslc libudev-dev libinput-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN apt-get update && apt-get install -y --no-install-recommends libdav1d-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN rustup component add rustfmt clippy

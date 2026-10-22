@@ -16,6 +16,8 @@ pub struct HidWrapper {
     input_focus: InputFocus,
     pub inner: Box<dyn HidProvider>,
     pub keymap: Option<XkbKeymap>,
+    #[cfg(feature = "experimental-kde-mirror")]
+    pub lease: super::input_lease::LeaseController,
 }
 
 #[allow(clippy::map_unwrap_or)]
@@ -31,11 +33,16 @@ impl HidWrapper {
             .map(|provider| (provider, None))
             .unwrap_or_else(|toast| (Box::new(DummyProvider {}), Some(toast)));
 
+        #[cfg(feature = "experimental-kde-mirror")]
+        let (provider, lease) = super::input_lease::LeasedProvider::wrap(provider);
+
         (
             Self {
                 input_focus: InputFocus::PhysicalScreen,
                 inner: provider,
                 keymap: None,
+                #[cfg(feature = "experimental-kde-mirror")]
+                lease,
             },
             toast,
         )
@@ -46,6 +53,8 @@ impl HidWrapper {
         wvr_server: Option<&mut WvrServerState>,
         value: InputFocus,
     ) -> bool {
+        #[cfg(feature = "experimental-kde-mirror")]
+        self.lease.clear();
         if self.input_focus == value {
             false
         } else {

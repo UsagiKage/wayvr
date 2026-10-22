@@ -66,12 +66,13 @@ impl ScreenPipeline {
         stereo: StereoMode,
         offsetf: [f32; 2],
         transform: wlx_frame::Transform,
+        shader: &str,
     ) -> anyhow::Result<Self> {
         let extentf = [meta.extent[0] as f32, meta.extent[1] as f32];
 
         let pipeline = app.gfx.create_pipeline(
             app.gfx_extras.shaders.get("vert_quad").unwrap(), // want panic
-            app.gfx_extras.shaders.get("frag_screen").unwrap(), // want panic
+            app.gfx_extras.shaders.get(shader).unwrap(),      // want panic
             WPipelineCreateInfo::new(app.gfx.surface_format)
                 .use_blend(AttachmentBlend::default())
                 .use_updatable_descriptors(smallvec![0]),
@@ -720,6 +721,9 @@ where
     }
     fn is_ready(&self) -> bool {
         self.inner.is_ready()
+    }
+    fn is_alive(&self) -> bool {
+        self.inner.is_alive()
     }
     fn request_new_frame(&mut self) {
         self.inner.request_new_frame();

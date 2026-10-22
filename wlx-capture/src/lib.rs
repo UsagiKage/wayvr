@@ -29,6 +29,10 @@ pub trait WlxCapture<U, R> {
         callback: fn(&U, WlxFrame) -> Option<R>,
     );
     fn is_ready(&self) -> bool;
+    /// False when an initialized capture has lost its transport/source.
+    fn is_alive(&self) -> bool {
+        true
+    }
     fn supports_dmbuf(&self) -> bool;
     fn receive(&mut self) -> Option<R>;
     fn pause(&mut self);

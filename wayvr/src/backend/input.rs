@@ -455,6 +455,11 @@ pub fn interact<O>(
 where
     O: Default,
 {
+    #[cfg(feature = "experimental-kde-mirror")]
+    app.hid_provider.lease.tracking([
+        app.input_state.pointers[0].tracked,
+        app.input_state.pointers[1].tracked,
+    ]);
     let hits = if app.input_state.pointers[1].last_click > app.input_state.pointers[0].last_click {
         let right = interact_hand(1, overlays, app);
         let left = interact_hand(0, overlays, app);

@@ -79,6 +79,10 @@ pub fn new_mirror_name() -> Arc<str> {
 }
 
 pub fn new_mirror(name: Arc<str>, app: &mut AppState) -> anyhow::Result<OverlayWindowConfig> {
+    #[cfg(feature = "experimental-kde-mirror")]
+    if let Ok(uuid) = std::env::var("WAYVR_EXPERIMENTAL_KDE_WINDOW") {
+        return super::kde::new_mirror(name, &uuid, app);
+    }
     fn finalize_fn(
         name: Arc<str>,
         _: Vec2,

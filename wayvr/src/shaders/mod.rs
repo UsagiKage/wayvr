@@ -12,6 +12,15 @@ pub mod frag_color {
     }
 }
 
+#[cfg(feature = "experimental-kde-mirror")]
+pub mod frag_kde_active {
+    vulkano_shaders::shader! { ty: "fragment", path: "src/shaders/kde_active.frag" }
+}
+#[cfg(feature = "experimental-kde-mirror")]
+pub mod frag_kde_inactive {
+    vulkano_shaders::shader! { ty: "fragment", path: "src/shaders/kde_inactive.frag" }
+}
+
 pub mod frag_grid {
     vulkano_shaders::shader! {
         ty: "fragment",

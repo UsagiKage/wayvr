@@ -62,6 +62,8 @@ pub struct ScreenBackend {
     pub(super) logical_size: Vec2,
     mouse_transform_override: MouseTransform,
     just_resumed: bool,
+    #[cfg(feature = "experimental-kde-mirror")]
+    experimental_status: Option<bool>,
 }
 
 impl ScreenBackend {
@@ -87,7 +89,54 @@ impl ScreenBackend {
             logical_size: Vec2::ZERO,
             mouse_transform_override: MouseTransform::Default,
             just_resumed: false,
+            #[cfg(feature = "experimental-kde-mirror")]
+            experimental_status: None,
         }
+    }
+
+    fn screen_shader(&self) -> &'static str {
+        #[cfg(feature = "experimental-kde-mirror")]
+        if let Some(active) = self.experimental_status {
+            return if active {
+                "frag_kde_active"
+            } else {
+                "frag_kde_inactive"
+            };
+        }
+        "frag_screen"
+    }
+
+    #[cfg(feature = "experimental-kde-mirror")]
+    pub(super) fn capture_extent(&self) -> Option<[u32; 2]> {
+        if !self.capture.is_alive() {
+            return None;
+        }
+        self.cur_frame
+            .as_ref()
+            .map(|frame| [frame.format.width, frame.format.height])
+    }
+
+    #[cfg(feature = "experimental-kde-mirror")]
+    pub(super) fn set_experimental_status(
+        &mut self,
+        app: &mut AppState,
+        active: bool,
+    ) -> anyhow::Result<bool> {
+        if self.experimental_status == Some(active) {
+            return Ok(false);
+        }
+        self.experimental_status = Some(active);
+        if let (Some(meta), Some(frame)) = (self.meta.as_ref(), self.cur_frame.as_ref()) {
+            self.pipeline = Some(ScreenPipeline::new(
+                meta,
+                app,
+                StereoMode::None,
+                [0., 0.],
+                frame.format.transform,
+                self.screen_shader(),
+            )?);
+        }
+        Ok(true)
     }
 
     pub(super) fn apply_mouse_transform_with_override(&mut self, transform: Transform) {
@@ -240,8 +289,14 @@ impl OverlayBackend for ScreenBackend {
                     self.interaction_transform = Some(ui_transform(meta.extent));
                 }
             } else {
-                let pipeline =
-                    ScreenPipeline::new(&meta, app, stereo, [0., 0.], frame.format.transform)?;
+                let pipeline = ScreenPipeline::new(
+                    &meta,
+                    app,
+                    stereo,
+                    [0., 0.],
+                    frame.format.transform,
+                    self.screen_shader(),
+                )?;
                 self.pipeline = Some(pipeline);
                 self.interaction_transform = Some(ui_transform(meta.extent));
             }

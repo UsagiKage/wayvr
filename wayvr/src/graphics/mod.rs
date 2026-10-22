@@ -84,6 +84,17 @@ impl WGfxExtras {
 
         let shader = frag_screen::load(gfx.device.clone())?;
         shaders.insert("frag_screen", shader);
+        #[cfg(feature = "experimental-kde-mirror")]
+        {
+            shaders.insert(
+                "frag_kde_active",
+                crate::shaders::frag_kde_active::load(gfx.device.clone())?,
+            );
+            shaders.insert(
+                "frag_kde_inactive",
+                crate::shaders::frag_kde_inactive::load(gfx.device.clone())?,
+            );
+        }
 
         let shader = frag_simple::load(gfx.device.clone())?;
         shaders.insert("frag_simple", shader);

@@ -5,3 +5,7 @@
 .cargo
 scripts/translator/node_modules
 */Cargo.lock
+/artifacts/
+/dev-session/
+/evidence/*.log
+/evidence/artifact-sha256.txt

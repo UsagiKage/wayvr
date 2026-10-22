@@ -56,6 +56,7 @@ uuid = { workspace = true }
 vulkano.workspace = true
 vulkano-shaders.workspace = true
 wayland-client = { workspace = true }
+wayland-scanner = { version = "0.31.10", optional = true }
 wayland-protocols = { workspace = true }
 wayland-protocols-misc = { workspace = true }
 winit = { workspace = true, optional = true }
@@ -132,6 +133,7 @@ evdev = "0.13.2"
 regex.workspace = true
 
 [features]
+experimental-kde-mirror = ["wayland", "dep:wayland-scanner"]
 default = ["openvr", "openxr", "osc", "wayland", "whisper", "x11"]
 as-raw-xcb-connection = []
 feat-monado-metrics = []

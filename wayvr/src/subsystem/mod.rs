@@ -1,6 +1,8 @@
 pub mod dbus;
 pub mod hid;
 pub mod input;
+#[cfg(feature = "experimental-kde-mirror")]
+pub mod input_lease;
 pub mod notifications;
 
 #[cfg(feature = "whisper")]

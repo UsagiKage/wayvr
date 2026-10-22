@@ -642,6 +642,7 @@ impl OverlayBackend for WvrWindowBackend {
                 self.stereo.unwrap_or(StereoMode::None),
                 [BORDER_SIZE as _, (BAR_SIZE + BORDER_SIZE) as _],
                 Transform::Normal,
+                "frag_screen",
             )?;
             self.apply_extent(app, &meta)?;
             self.pipeline = Some(pipeline);

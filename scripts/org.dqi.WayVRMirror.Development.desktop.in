@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=WayVR Interactive Mirror Development Authorization
+# Authorization metadata only. Use run-archimedes-prototype.sh with isolated XDG paths.
+# Substitute the exact artifact path during an approved runtime setup.
+Exec=@ABSOLUTE_PROTOTYPE_BINARY@ --openvr --no-autostart
+NoDisplay=true
+Terminal=false
+X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1

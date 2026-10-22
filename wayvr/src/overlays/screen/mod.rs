@@ -17,6 +17,12 @@ use wlx_common::DesktopBackend;
 
 pub mod backend;
 pub mod capture;
+#[cfg(feature = "experimental-kde-mirror")]
+pub mod kde;
+#[cfg(feature = "experimental-kde-mirror")]
+mod kde_capture;
+#[cfg(feature = "experimental-kde-mirror")]
+mod kde_session;
 #[cfg(feature = "wayland")]
 pub mod mirror;
 #[cfg(feature = "pipewire")]
