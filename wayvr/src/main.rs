@@ -64,6 +64,10 @@ pub static KEYMAP_CHANGE: AtomicBool = AtomicBool::new(false);
 #[derive(Default, Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
+    #[cfg(feature = "experimental-kde-driver")]
+    /// Development-only stdin driver: simulated KWrite and recording input; never starts VR.
+    #[arg(long)]
+    desktop_mirror_driver: bool,
     #[cfg(feature = "openvr")]
     /// Force OpenVR backend
     #[arg(long)]
@@ -145,6 +149,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         Args::default()
     };
+
+    #[cfg(feature = "experimental-kde-driver")]
+    if args.desktop_mirror_driver {
+        if std::env::args().count() != 2 {
+            return Err(
+                "--desktop-mirror-driver must be used alone; live input is not implemented".into(),
+            );
+        }
+        return overlays::screen::desktop_driver::run();
+    }
 
     if !args.multi && !ensure_single_instance(args.replace) {
         println!("Looks like WayVR is already running.");

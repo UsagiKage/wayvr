@@ -134,6 +134,7 @@ regex.workspace = true
 
 [features]
 experimental-kde-mirror = ["wayland", "dep:wayland-scanner"]
+experimental-kde-driver = ["experimental-kde-mirror"]
 default = ["openvr", "openxr", "osc", "wayland", "whisper", "x11"]
 as-raw-xcb-connection = []
 feat-monado-metrics = []

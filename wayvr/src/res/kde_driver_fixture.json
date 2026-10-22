@@ -1,0 +1,19 @@
+{
+  "application_id": "org.kde.kwrite",
+  "title": "SIMULATED disposable KWrite document",
+  "capture_uuid": "{11111111-1111-4111-8111-111111111111}",
+  "extent": [1200, 900],
+  "snapshot": {
+    "token": "SIMULATION-NOT-A-KDE-PERMISSION",
+    "uuid": "{11111111-1111-4111-8111-111111111111}",
+    "visible": true,
+    "active": false,
+    "transients": false,
+    "geometry": [-800.0, 100.0, 800.0, 600.0],
+    "scale": 1.5,
+    "generation": 1,
+    "probe_seq": 0,
+    "hit_uuid": "",
+    "probe": null
+  }
+}

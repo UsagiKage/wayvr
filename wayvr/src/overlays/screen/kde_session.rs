@@ -49,6 +49,27 @@ pub struct Shared {
     pub capture_generation: AtomicU64,
 }
 impl Shared {
+    pub(super) fn disconnected(uuid: String) -> Arc<Self> {
+        Arc::new(Self {
+            uuid,
+            snapshot: Mutex::new(None),
+            commands: Mutex::new(Commands::default()),
+            alive: AtomicBool::new(false),
+            armed: AtomicBool::new(false),
+            accepted: AtomicBool::new(false),
+            capture_generation: AtomicU64::new(u64::MAX),
+        })
+    }
+    #[cfg(feature = "experimental-kde-driver")]
+    pub(super) fn simulate_snapshot(&self, snapshot: Snapshot, age: Duration) {
+        *self.snapshot.lock().unwrap() = Some((snapshot, Instant::now() - age));
+    }
+    #[cfg(feature = "experimental-kde-driver")]
+    pub(super) fn simulation_commands(&self) -> (bool, Option<[f64; 2]>, u64) {
+        let mut commands = self.commands.lock().unwrap();
+        let activate = std::mem::take(&mut commands.activate);
+        (activate, commands.probe, commands.probe_seq)
+    }
     pub fn snapshot(&self) -> Option<Snapshot> {
         let snapshot = self.snapshot.lock().ok()?;
         let (s, at) = snapshot.as_ref()?;

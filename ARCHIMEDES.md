@@ -3,6 +3,10 @@
 Date recorded: 2026-10-21 PDT. Status: experimental source and static verification;
 desktop/KWin integration and headset acceptance are pending user authorization.
 
+Latest approved step: the [desktop driver](DESKTOP-DRIVER.md) exercises shared
+interaction logic using recorded events and synthetic KWrite metadata only.
+Native KDE authorization, live input and experimental runtime startup remain gated.
+
 ## Authority and baseline
 
 - Canonical upstream: https://github.com/wayvr-org/wayvr

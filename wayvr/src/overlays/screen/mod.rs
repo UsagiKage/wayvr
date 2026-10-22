@@ -17,10 +17,14 @@ use wlx_common::DesktopBackend;
 
 pub mod backend;
 pub mod capture;
+#[cfg(feature = "experimental-kde-driver")]
+pub mod desktop_driver;
 #[cfg(feature = "experimental-kde-mirror")]
 pub mod kde;
 #[cfg(feature = "experimental-kde-mirror")]
 mod kde_capture;
+#[cfg(feature = "experimental-kde-mirror")]
+mod kde_interaction;
 #[cfg(feature = "experimental-kde-mirror")]
 mod kde_session;
 #[cfg(feature = "wayland")]

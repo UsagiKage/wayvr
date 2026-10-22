@@ -22,6 +22,16 @@ pub struct HidWrapper {
 
 #[allow(clippy::map_unwrap_or)]
 impl HidWrapper {
+    #[cfg(feature = "experimental-kde-driver")]
+    pub fn from_recording_provider(provider: Box<dyn HidProvider>) -> Self {
+        let (inner, lease) = super::input_lease::LeasedProvider::wrap(provider);
+        Self {
+            input_focus: InputFocus::PhysicalScreen,
+            inner,
+            keymap: None,
+            lease,
+        }
+    }
     pub fn new(method: InputEmulationMethod) -> (Self, Option<Toast>) {
         let maybe_provider = match method {
             InputEmulationMethod::Uinput => hid::provider::uinput::initialize_uinput(),

@@ -2,28 +2,25 @@
 use super::{
     backend::{CaptureType, ScreenBackend},
     capture::{MainThreadWlxCapture, new_wlx_capture},
-    kde_session::{Session, Snapshot, map_point},
+    kde_interaction::MirrorInteraction,
+    kde_session::Session,
 };
 use crate::{
-    backend::input::{HoverResult, PointerHit, PointerMode},
+    backend::input::{HoverResult, PointerHit},
     overlays::toast::Toast,
     state::AppState,
-    subsystem::{
-        hid::{MOUSE_LEFT, MOUSE_MIDDLE, MOUSE_RIGHT, WheelDelta},
-        input::InputFocus,
-        input_lease::InputPermit,
-    },
+    subsystem::{hid::WheelDelta, input_lease::InputPermit},
     windowing::{
         backend::{FrameMeta, OverlayBackend, OverlayEventData, RenderResources, ShouldRender},
         window::{OverlayCategory, OverlayWindowConfig},
     },
 };
-use glam::{Affine2, Affine3A, DVec2, Quat, Vec3, vec3};
+use glam::{Affine2, Affine3A, Quat, Vec3, vec3};
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use wgui::i18n::Translation;
 use wlx_capture::{WlxCapture, pipewire::capture::PipewireCapture};
 use wlx_common::{
@@ -56,13 +53,9 @@ pub fn new_mirror(
         renderer: None,
         name: name.clone(),
         startup_failed: false,
+        interaction: MirrorInteraction::new(session.shared.clone()),
         session,
         _reservation: reservation,
-        owner: None,
-        activation_click: false,
-        activation_until: None,
-        generation: None,
-        held_button: None,
     };
     Ok(OverlayWindowConfig {
         name,
@@ -91,63 +84,18 @@ struct KdeMirror {
     startup_failed: bool,
     session: Session,
     _reservation: Reservation,
-    owner: Option<usize>,
-    activation_click: bool,
-    activation_until: Option<Instant>,
-    generation: Option<u64>,
-    held_button: Option<u16>,
-}
-impl KdeMirror {
-    fn revoke(&mut self, app: &mut AppState) {
-        self.session.shared.revoke();
-        self.owner = None;
-        self.activation_click = false;
-        self.activation_until = None;
-        self.held_button = None;
-        // The lease stays revoked until another deliberate focus selection.
-        app.hid_provider.inner.commit();
-    }
-    fn geometry(&self) -> Option<Snapshot> {
-        let snapshot = self.session.shared.snapshot()?;
-        if !snapshot.visible || snapshot.transients {
-            return None;
-        }
-        let extent = self.renderer.as_ref()?.capture_extent()?;
-        for (actual, logical) in extent.into_iter().zip(&snapshot.geometry[2..]) {
-            if (f64::from(actual) - logical * snapshot.scale).abs() > 1. {
-                return None;
-            }
-        }
-        Some(snapshot)
-    }
-    fn target_point(&self, hit: &PointerHit) -> Option<DVec2> {
-        let snapshot = self.geometry()?;
-        let point = map_point(&snapshot, [f64::from(hit.uv.x), f64::from(hit.uv.y)])?;
-        self.session.shared.probe(point);
-        if snapshot.probe_seq == 0 || snapshot.hit_uuid != self.session.shared.uuid {
-            return None;
-        }
-        let approved = snapshot.probe?;
-        // Inject the compositor-checked point, never the newer unchecked ray position.
-        Some(DVec2::from_array(approved))
-    }
-    fn active(&self) -> bool {
-        self.owner.is_some()
-            && !self.activation_click
-            && self.session.shared.valid()
-            && self.geometry().is_some()
-    }
+    interaction: MirrorInteraction,
 }
 impl OverlayBackend for KdeMirror {
     fn init(&mut self, _: &mut AppState) -> anyhow::Result<()> {
         Ok(())
     }
     fn pause(&mut self, app: &mut AppState) -> anyhow::Result<()> {
-        self.revoke(app);
+        self.interaction.deactivate(&mut app.hid_provider);
         self.renderer.as_mut().map_or(Ok(()), |r| r.pause(app))
     }
     fn resume(&mut self, app: &mut AppState) -> anyhow::Result<()> {
-        self.revoke(app);
+        self.interaction.deactivate(&mut app.hid_provider);
         self.renderer.as_mut().map_or(Ok(()), |r| r.resume(app))
     }
     fn should_render(&mut self, app: &mut AppState) -> anyhow::Result<ShouldRender> {
@@ -157,6 +105,7 @@ impl OverlayBackend for KdeMirror {
             }
             match self.session.node.try_recv() {
                 Ok(Ok(node)) => {
+                    self.interaction.verify_target(&self.session.shared.uuid)?;
                     let capture = new_wlx_capture!(
                         app.gfx_extras.queue_capture,
                         PipewireCapture::new(self.name.clone(), node)
@@ -180,36 +129,20 @@ impl OverlayBackend for KdeMirror {
             }
         }
         let render = self.renderer.as_mut().unwrap().should_render(app)?;
-        let geometry = self.geometry();
-        let generation = geometry.as_ref().map(|s| s.generation);
-        self.session
-            .shared
-            .capture_generation
-            .store(generation.unwrap_or(u64::MAX), Ordering::Release);
-        if self.activation_until.is_some()
-            && !self.activation_click
-            && self.session.shared.target_valid()
-        {
-            self.activation_until = None;
-            self.session.shared.accepted.store(true, Ordering::Release);
-        }
-        let release = self.owner.is_some_and(|owner| {
-            let p = &app.input_state.pointers[owner];
-            !p.tracked || p.now.alt_click || p.now.grab
-        });
-        if release
-            || generation != self.generation
-            || self
-                .activation_until
-                .is_some_and(|deadline| Instant::now() > deadline)
-            || (self.owner.is_some()
-                && !self.session.shared.valid()
-                && self.activation_until.is_none())
-        {
-            self.revoke(app);
-        }
-        self.generation = generation;
-        let active = self.active();
+        self.interaction.tick(
+            self.renderer.as_ref().and_then(|r| r.capture_extent()),
+            [
+                app.input_state.pointers[0].tracked,
+                app.input_state.pointers[1].tracked,
+            ],
+            [
+                app.input_state.pointers[0].now.alt_click || app.input_state.pointers[0].now.grab,
+                app.input_state.pointers[1].now.alt_click || app.input_state.pointers[1].now.grab,
+            ],
+            Instant::now(),
+            &mut app.hid_provider,
+        );
+        let active = self.interaction.active();
         let renderer = self.renderer.as_mut().unwrap();
         if renderer.set_experimental_status(app, active)? && renderer.frame_meta().is_some() {
             return Ok(ShouldRender::Should);
@@ -231,98 +164,22 @@ impl OverlayBackend for KdeMirror {
             .map_or(Ok(()), |r| r.notify(app, event))
     }
     fn on_hover(&mut self, app: &mut AppState, hit: &PointerHit) -> HoverResult {
-        if self
-            .owner
-            .is_some_and(|owner| !app.input_state.pointers[owner].tracked)
-        {
-            self.revoke(app);
-        }
-        // Probe without moving the actual pointer until identity and topmost hit agree.
-        let point = self.target_point(hit);
-        if point.is_none() && self.held_button.is_some() {
-            self.revoke(app);
-        }
-        if self.active()
-            && self.owner == Some(hit.pointer)
-            && let Some(point) = point
-        {
-            app.hid_provider.inner.mouse_move(point);
-        }
+        self.interaction.hover(&mut app.hid_provider, hit);
         HoverResult::consume()
     }
-    fn on_left(&mut self, _: &mut AppState, _: usize) {} // Moving to the keyboard preserves the lease.
+    fn on_left(&mut self, _: &mut AppState, _: usize) {} // Keyboard retains the desktop lease.
     fn on_pointer(&mut self, app: &mut AppState, hit: &PointerHit, down: bool) {
-        if !down && self.activation_click && self.owner == Some(hit.pointer) {
-            self.activation_click = false;
-            return;
-        }
-        if down && self.owner.is_none() {
-            if self.geometry().is_none() {
-                return;
-            }
-            app.hid_provider
-                .set_input_focus(app.wvr_server.as_mut(), InputFocus::PhysicalScreen);
-            self.session.shared.accepted.store(false, Ordering::Release);
-            self.session.shared.armed.store(true, Ordering::Release);
-            self.session.shared.activate();
-            app.hid_provider
-                .lease
-                .begin(self.session.shared.clone(), hit.pointer);
-            self.owner = Some(hit.pointer);
-            self.activation_click = true;
-            self.activation_until = Some(Instant::now() + Duration::from_secs(1));
-            return; // First click is activation only, never forwarded.
-        }
-        if self.owner != Some(hit.pointer) {
-            return;
-        }
-        let mut button = match hit.mode {
-            PointerMode::Right => MOUSE_RIGHT,
-            PointerMode::Middle => MOUSE_MIDDLE,
-            _ => MOUSE_LEFT,
-        };
-        if app.session.config.left_handed_mouse {
-            button = match button {
-                MOUSE_LEFT => MOUSE_RIGHT,
-                MOUSE_RIGHT => MOUSE_LEFT,
-                other => other,
-            };
-        }
-        if !down {
-            if let Some(button) = self.held_button.take() {
-                app.hid_provider.inner.send_button(button, false);
-            }
-            return;
-        }
-        if self.active()
-            && let Some(point) = self.target_point(hit)
-        {
-            let Some(snapshot) = self.geometry() else {
-                return;
-            };
-            let Some(desired) = map_point(&snapshot, [f64::from(hit.uv.x), f64::from(hit.uv.y)])
-            else {
-                return;
-            };
-            if (DVec2::from_array(desired) - point).length() > 4. {
-                return;
-            }
-            app.hid_provider.inner.mouse_move(point);
-            app.hid_provider.inner.send_button(button, true);
-            self.held_button = Some(button);
-        }
+        self.interaction.pointer(
+            &mut app.hid_provider,
+            app.wvr_server.as_mut(),
+            hit,
+            down,
+            app.session.config.left_handed_mouse,
+            Instant::now(),
+        );
     }
-    fn on_scroll(&mut self, app: &mut AppState, hit: &PointerHit, mut delta: WheelDelta) {
-        if self.active()
-            && self.owner == Some(hit.pointer)
-            && let Some(point) = self.target_point(hit)
-        {
-            app.hid_provider.inner.mouse_move(point);
-            app.hid_provider.inner.commit();
-            delta.x *= 60.;
-            delta.y *= 60.;
-            app.hid_provider.inner.wheel(delta);
-        }
+    fn on_scroll(&mut self, app: &mut AppState, hit: &PointerHit, delta: WheelDelta) {
+        self.interaction.scroll(&mut app.hid_provider, hit, delta);
     }
     fn get_interaction_transform(&mut self) -> Option<Affine2> {
         self.renderer

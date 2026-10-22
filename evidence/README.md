@@ -35,3 +35,25 @@ headset behavior and SteamVR game-input handoff have NOT been tested.
 
 Run `sh scripts/archimedes-build.sh` to reproduce build/static checks. It never
 launches the VR application. See ARCHIMEDES.md for the separate runtime gate.
+
+## Desktop driver checkpoint — simulation only
+
+- `driver-tests.log`: 13 Rust tests passed, including five driver regressions using
+  the same interaction component and input lease as the VR mirror.
+- `driver-feature-off.log`, `driver-mirror-only.log`, `driver-build.log`: all three
+  Wayland/OpenVR feature combinations built; upstream compiler warnings remain.
+- `driver-format.log`: formatting passed. Shell syntax and whitespace checks passed.
+- `desktop-driver-trace.log`: packaged CLI scenario; first click consumed, center
+  mapped to negative-origin logical coordinates, right-button release, scroll,
+  keyboard route, held-input release on capture loss and refusal after recovery.
+- `desktop-driver-smoke.log`: trace assertions plus EOF/malformed-input cleanup and
+  rejection of wrapper arguments passed. Reproduce with
+  `python3 tests/desktop-driver-smoke.py` (simulation containers only).
+- `desktop-driver-startup.log`: isolated simulation created none of the designated
+  XDG runtime/config/data/cache directories; additional runtime flags were rejected.
+
+The packaged executable was run only with `--desktop-mirror-driver`, before normal
+WayVR startup. No live provider is implemented in that path. Tests used synthetic
+KWrite metadata, not a real desktop window. No KDE authorization, KWin script,
+actual desktop injection, experimental VR runtime or headset test was performed.
+See [DESKTOP-DRIVER.md](../DESKTOP-DRIVER.md) for isolation and the next approval gate.
