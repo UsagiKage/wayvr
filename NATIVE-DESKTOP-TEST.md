@@ -1,4 +1,4 @@
-# Controlled KDE desktop test — preparation checkpoint
+# Controlled KDE desktop test — refused before injection
 
 2026-10-22 PDT. Starting checkpoint: `f1ac1bdf742090750911c85444cb1eaca1ae0342`
 on `codex/interactive-kde-window`; clean when inspected. User authorized controlled
@@ -6,7 +6,42 @@ KWrite testing, including development-only KDE authorization and input. No Steam
 or headset startup, stable installation change, global settings or privileged service.
 Ask before interrupting the desktop; stop on uncertain authorization or targeting.
 
-## Prepared, not yet performed
+## Actual native observations — 2026-10-22 PDT
+
+The user approved opening the disposable document and KDE picker. KWrite was
+started with separate config/data/cache directories and no preexisting KWrite
+process. The user-driven picker selected:
+
+- Application: `org.kde.kwrite`; PID `3763140`.
+- Title: `wayvr-disposable-20261022.txt — KWrite`.
+- UUID: `{7fbc05fb-b6ea-4e27-ab53-716460ed008f}`.
+- Picker frame geometry: approximately `[1987.118, 73.234, 899, 884]` logical units.
+- `excludeFromCapture: false`.
+
+At 08:12:16 PDT, native preflight refused the PID because the Rust decoder only
+accepted unsigned D-Bus values. KDE's independent picker result had confirmed the
+expected signed PID. A lossless signed/unsigned conversion was added, retaining
+rejection of zero, negative, oversized or string values; its regression test passed.
+
+At 08:13:17 PDT, the retry verified UUID, KWrite identity, PID and document title,
+then created native capture node `104`. This establishes authorization and creation
+of the requested window's capture stream, **not successful frame consumption**.
+It then timed out with:
+
+> No matching fresh capture and KWin telemetry; input remains disabled
+
+The test STOPPED. The current diagnostics do not distinguish absent PipeWire frames
+from absent KWin telemetry; neither a validated scale/capture extent nor reliable
+target mapping was established. Targeted KWin journal searches found no corresponding
+script error. Do not infer the timer, script, PipeWire negotiation or GPU as the cause.
+
+No input provider/device was created and no desktop input was injected. Activation,
+first-click consumption, pointer/click/scroll/keyboard routing, held-input release,
+movement and resize refusal remain **unvalidated on the real desktop**. Unrelated
+windows received no injected test events because injection never began. Existing
+simulated checks remain available; they do not establish native desktop success.
+
+## Native non-injecting entry point
 
 The previous driver has no live backend. A separate **non-injecting** early-return
 `--desktop-mirror-probe` entry point now accepts only an explicitly selected KWin
@@ -32,21 +67,27 @@ no arguments, which would enter normal WayVR startup.
 
 The test document must be expendable and begin with `wayvr-disposable-`. A matching
 title alone is insufficient: KWrite application identity, PID and UUID must agree.
-No KWrite target, authorization metadata or temporary KWin helper has been created
-at this checkpoint. The desktop-picker readiness question is pending.
+The actual picker/identity observations above supersede the earlier preparation
+checkpoint. A fixture or title match alone never authorizes real input.
 
 ## Evidence and remaining work
 
-`evidence/native-probe-tests.log`: 13 existing Rust tests passed.
+`evidence/native-probe-tests.log`: 14 Rust tests passed, including the signed-PID
+regression. These are unit/simulated tests, separate from the native observations.
 `evidence/native-probe-build.log`: build passed, existing compiler warnings remain.
 `evidence/native-probe-startup.log`: original simulation still returns before normal
 startup; invalid native UUID refused without desktop access. Formatting, shell
 syntax and whitespace checks passed. These are build/simulation results only.
 
-Native identity/capture/geometry checks have NOT run. Actual activation, mouse,
-keyboard, scrolling, held-input release and movement/resize refusal have NOT been
-tested. No claim can be made that unrelated windows received no events during a
-live test, because no live test occurred. No input was injected by this work.
+Local native logs: `evidence/native-kde-preflight-20261022.log` (initial decoder
+refusal), `evidence/native-kde-preflight-20261022-retry.log` (verified identity,
+capture node and timeout), `evidence/native-kde-scripting-after-20261022.log`
+(no exported script children after cleanup). The selected-window result,
+authorization manifest and cleanup record live under ignored `dev-session/native-check`.
+
+Next experiment: instrument capture-frame arrival versus KWin snapshot receipt and
+repeat **only the non-injecting preflight**, with the same deliberately selected
+disposable target. Do not proceed to native input until that gate passes.
 
 After successful native preflight, complete a narrowly gated live desktop backend
 with an independent expiry tick, using the existing interaction and lease logic.
@@ -56,13 +97,20 @@ Do not recommend proceeding to a headset test until the desktop milestone passes
 
 ## Rollback
 
-This checkpoint requires no installed-state rollback: no authorization entry,
-input device, KWrite process, temporary script or persistent service was installed
-or started. The preflight source/artifact can remain unused. Stable WayVR is intact.
-If future permission metadata is installed, preserve any preexisting file first
-and remove only the exact new development desktop entry afterward. The existing
-Session cleanup closes its capture and unloads its uniquely named temporary KWin
-script; verify that cleanup after any real invocation. Never restart KWin for cleanup.
+The newly created authorization entry
+`/home/Usagi/.local/share/applications/org.dqi.WayVRMirror.DesktopTest.desktop`
+was removed after its contents were compared with the staged copy. No prior file
+existed or was overwritten. Session teardown closed the capture and attempted helper
+unload; subsequent `/Scripting` introspection showed no script children and no
+`/tmp/dqi-wayvr-mirror-*` directories remained. No persistent service/input setting
+was created. All nine stable WayVR file checksums still match; original prototype
+and simulation artifacts are unchanged.
+
+The expendable KWrite document remains open for the user to close normally; no
+existing application was terminated. Its document and isolated settings are under
+`dev-session/native-check` in this checkout. Keep or remove that folder only after
+closing this disposable KWrite window; it contains no ordinary KWrite settings.
+Stable WayVR needs no restoration. Never restart KWin as cleanup.
 
 Upstream checks used during preparation:
 [KWin window identity information](https://github.com/KDE/kwin/blob/Plasma/6.7/src/dbusinterface.cpp),

@@ -57,3 +57,14 @@ WayVR startup. No live provider is implemented in that path. Tests used syntheti
 KWrite metadata, not a real desktop window. No KDE authorization, KWin script,
 actual desktop injection, experimental VR runtime or headset test was performed.
 See [DESKTOP-DRIVER.md](../DESKTOP-DRIVER.md) for isolation and the next approval gate.
+
+## Native KWrite preflight — 2026-10-22 PDT
+
+User selected the actual disposable KWrite window using KDE's picker. Native
+identity verification and restricted capture stream creation passed on retry after
+correcting signed D-Bus PID decoding (14 Rust tests now pass). The preflight then
+timed out without establishing matching capture extent/fresh geometry telemetry.
+STOPPED before any input provider was created or input injected; no native
+interaction or headset success is claimed. Capture authorization entry was removed;
+stable WayVR checksums remain unchanged. Exact observations, local log names,
+limitations and rollback are in [NATIVE-DESKTOP-TEST.md](../NATIVE-DESKTOP-TEST.md).

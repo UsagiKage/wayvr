@@ -18,6 +18,14 @@ fn frame_extent(_: &(), frame: WlxFrame) -> Option<FrameFormat> {
     }
 }
 
+fn process_id(value: &dyn dbus::arg::RefArg) -> Option<u32> {
+    value
+        .as_u64()
+        .or_else(|| value.as_i64().and_then(|v| u64::try_from(v).ok()))
+        .and_then(|v| u32::try_from(v).ok())
+        .filter(|v| *v > 0)
+}
+
 pub fn run(uuid: &str, pid: u32, title: &str) -> anyhow::Result<()> {
     let uuid = uuid::Uuid::parse_str(uuid)?.braced().to_string();
     anyhow::ensure!(
@@ -29,7 +37,7 @@ pub fn run(uuid: &str, pid: u32, title: &str) -> anyhow::Result<()> {
         .with_proxy("org.kde.KWin", "/KWin", Duration::from_secs(1))
         .method_call("org.kde.KWin", "getWindowInfo", (&uuid,))?;
     let text = |key: &str| info.get(key).and_then(|v| v.0.as_str());
-    let actual_pid = info.get("pid").and_then(|v| v.0.as_u64());
+    let actual_pid = info.get("pid").and_then(|v| process_id(&*v.0));
     println!(
         "{}",
         json!({"stage":"identity", "uuid":text("uuid"),
@@ -37,7 +45,7 @@ pub fn run(uuid: &str, pid: u32, title: &str) -> anyhow::Result<()> {
         "pid":actual_pid, "real_input":false, "vr_runtime":false})
     );
     anyhow::ensure!(
-        text("uuid") == Some(uuid.as_str()) && actual_pid == Some(u64::from(pid)),
+        text("uuid") == Some(uuid.as_str()) && actual_pid == Some(pid),
         "Selected target UUID/PID is not the expected disposable process"
     );
     anyhow::ensure!(
@@ -100,4 +108,19 @@ pub fn run(uuid: &str, pid: u32, title: &str) -> anyhow::Result<()> {
         std::thread::sleep(Duration::from_millis(10));
     }
     anyhow::bail!("No matching fresh capture and KWin telemetry; input remains disabled")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::process_id;
+    #[test]
+    fn accepts_signed_kde_pid_without_accepting_invalid_values() {
+        assert_eq!(process_id(&3763140_i32), Some(3763140));
+        assert_eq!(process_id(&3763140_i64), Some(3763140));
+        assert_eq!(process_id(&3763140_u32), Some(3763140));
+        assert_eq!(process_id(&(-1_i32)), None);
+        assert_eq!(process_id(&0_u32), None);
+        assert_eq!(process_id(&u64::MAX), None);
+        assert_eq!(process_id(&String::from("3763140")), None);
+    }
 }

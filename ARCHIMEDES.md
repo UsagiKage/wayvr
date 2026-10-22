@@ -8,9 +8,11 @@ interaction logic using recorded events and synthetic KWrite metadata only.
 Native KDE authorization, live input and experimental runtime startup remain gated.
 
 2026-10-22 update: controlled KDE/KWrite desktop testing is authorized, with a
-readiness question pending before the interactive picker. A non-injecting native
-preflight has been prepared; see [NATIVE-DESKTOP-TEST.md](NATIVE-DESKTOP-TEST.md).
-No native input or VR/headset test has yet been performed.
+user-selected disposable target verified through the interactive picker. Native
+capture authorization passed, but the non-injecting preflight could not establish
+matching fresh capture/telemetry, so testing stopped before input. The temporary
+authorization was removed. See [NATIVE-DESKTOP-TEST.md](NATIVE-DESKTOP-TEST.md).
+No native input or VR/headset test has been performed.
 
 ## Authority and baseline
 
